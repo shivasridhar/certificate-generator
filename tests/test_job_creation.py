@@ -5,6 +5,15 @@ from app.schemas import RecipientIn
 from app.services.validation import validate_recipients
 
 
+@pytest.fixture(autouse=True)
+def disable_background_worker(monkeypatch):
+    """
+    Ensure background worker does not execute automatically in test_job_creation,
+    allowing us to inspect the initial 'pending' state produced at job creation time.
+    """
+    monkeypatch.setattr("app.routers.jobs.process_job", lambda job_id: None)
+
+
 # ==============================================================================
 # Unit Tests for validate_recipients
 # ==============================================================================

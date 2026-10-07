@@ -35,11 +35,22 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def session_factory():
+    """
+    Provides the test sessionmaker bound to the in-memory SQLite database,
+    allowing tests and background workers to open isolated test sessions.
+    """
+    return TestingSessionLocal
+
+
+@pytest.fixture(scope="function")
+def client(db_session, monkeypatch, tmp_path):
     """
     FastAPI TestClient fixture that overrides the app's get_db dependency
-    with the isolated in-memory test database session.
+    and ensures background tasks use the isolated test database and temporary output directory.
     """
+    from app.services import processing
+
     def override_get_db():
         try:
             yield db_session
@@ -47,6 +58,9 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(processing, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(processing, "OUTPUT_DIR", tmp_path)
+
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
