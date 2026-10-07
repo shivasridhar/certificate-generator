@@ -48,8 +48,7 @@ class JobCreate(BaseModel):
     recipients: list[RecipientIn] = Field(
         ...,
         min_length=1,
-        max_length=MAX_RECIPIENTS_PER_JOB,
-        description=f"List of recipients (between 1 and {MAX_RECIPIENTS_PER_JOB})",
+        description="List of recipients (minimum 1, maximum configured limit)",
     )
 
     @field_validator("event_name", "issuer")
@@ -59,6 +58,17 @@ class JobCreate(BaseModel):
         if not trimmed:
             raise ValueError("Field cannot be empty or contain only whitespace.")
         return trimmed
+
+    @field_validator("recipients")
+    @classmethod
+    def validate_recipients_count(cls, recipients: list[RecipientIn]) -> list[RecipientIn]:
+        from app import config
+        if len(recipients) > config.MAX_RECIPIENTS_PER_JOB:
+            raise ValueError(
+                f"Number of recipients ({len(recipients)}) exceeds maximum allowed "
+                f"limit of {config.MAX_RECIPIENTS_PER_JOB} per job."
+            )
+        return recipients
 
 
 # ==============================================================================
