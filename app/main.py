@@ -3,7 +3,7 @@ from fastapi import FastAPI
 
 from app import models  # noqa: F401 - Ensure all models are registered with Base metadata
 from app.database import Base, engine
-from app.routers import jobs
+from app.routers import certificates, jobs
 
 
 @asynccontextmanager
@@ -27,6 +27,7 @@ app = FastAPI(
 
 # Register routers
 app.include_router(jobs.router)
+app.include_router(certificates.router)
 
 
 @app.get("/health", tags=["Health"])

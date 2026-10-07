@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.config import MAX_RECIPIENTS_PER_JOB
 from app.models import CertificateStatus, JobStatus
@@ -88,9 +88,20 @@ class CertificateOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @computed_field
+    @property
+    def download_url(self) -> Optional[str]:
+        """
+        Direct URL to download this specific certificate.
+        Only populated when the certificate status is 'success'.
+        """
+        if self.status == CertificateStatus.SUCCESS:
+            return f"/certificates/{self.id}/download"
+        return None
+
 
 class JobOut(BaseModel):
-    """Output representation of a job with summary counts and status."""
+    """Output representation of a job with summary counts, status, and progress."""
     id: str
     status: JobStatus
     event_name: str
@@ -103,6 +114,22 @@ class JobOut(BaseModel):
     completed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def progress_percent(self) -> float:
+        """
+        Calculates overall job completion as a percentage (0.0 to 100.0), rounded to 1 decimal place.
+
+        DESIGN REASONING NOTE:
+        The 'failed' counter encompasses recipients rejected upfront during initial job
+        validation (such as malformed emails) as well as any runtime PDF rendering failures.
+        Consequently, (succeeded + failed) accurately represents the count of recipients
+        whose processing has fully resolved, reaching 100.0% when every certificate is handled.
+        """
+        if self.total <= 0:
+            return 0.0
+        return round(((self.succeeded + self.failed) / self.total) * 100.0, 1)
 
 
 class JobDetailOut(JobOut):
